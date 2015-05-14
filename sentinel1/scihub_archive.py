@@ -141,9 +141,13 @@ def scihub_opensearch(conn, opener):
         if not 'producttype' in scene.keys():
             scene['producttype']=scene['identifier'].split("_")[2]
         if scene['id'] not in current_scene:
-            cursor.execute("""INSERT INTO scihub_scene (status, platformname, platformidentifier, id, identifier, missiondatatakeid, acquisitiontype, orbitnumber, relativeorbitnumber, beginposition, endposition, sensoroperationalmode, swathidentifier, orbitdirection, polarisationmode, slicenumber, ingestiondate, producttype, filename, format, size, footprint ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" , (scene['status'], scene['platformname'], scene['platformidentifier'], scene['id'], scene['identifier'], scene['missiondatatakeid'], scene['acquisitiontype'], scene['orbitnumber'], scene['relativeorbitnumber'], scene['beginposition'], scene['endposition'], scene['sensoroperationalmode'], scene['swathidentifier'], scene['orbitdirection'], scene['polarisationmode'], scene['slicenumber'], scene['ingestiondate'], scene['producttype'], scene['filename'], scene['format'], scene['size'], scene['footprint']) )
-            conn.commit()
-            count += 1
+            try:
+                cursor.execute("""INSERT INTO scihub_scene (status, platformname, platformidentifier, id, identifier, missiondatatakeid, acquisitiontype, orbitnumber, relativeorbitnumber, beginposition, endposition, sensoroperationalmode, swathidentifier, orbitdirection, polarisationmode, slicenumber, ingestiondate, producttype, filename, format, size, footprint ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" , (scene['status'], scene['platformname'], scene['platformidentifier'], scene['id'], scene['identifier'], scene['missiondatatakeid'], scene['acquisitiontype'], scene['orbitnumber'], scene['relativeorbitnumber'], scene['beginposition'], scene['endposition'], scene['sensoroperationalmode'], scene['swathidentifier'], scene['orbitdirection'], scene['polarisationmode'], scene['slicenumber'], scene['ingestiondate'], scene['producttype'], scene['filename'], scene['format'], scene['size'], scene['footprint']) )
+                conn.commit()
+                count += 1
+            except:
+                print "not unique id:",scene,"#########################\n"
+                conn.rollback()
     print "Added %d to archive.db" % count
 
 class ThreadDownload(threading.Thread):
