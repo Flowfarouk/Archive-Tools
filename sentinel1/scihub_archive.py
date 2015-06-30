@@ -90,7 +90,7 @@ def database_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def scihub_opensearch(conn, opener):
+def scihub_opensearch(conn, opener, days):
     INDEX = 0
     STRIDE = 5000
     scenes=[]
@@ -115,7 +115,7 @@ def scihub_opensearch(conn, opener):
     else:
         #search scihub and get a list of all scenes ingested in the last 4 days 
         while next_page:
-            url = BASE_URL+SERVICE_ACTION+"?q=*+AND+ingestionDate:[NOW-4DAY+TO+NOW]&rows=%d&start=%d" % (STRIDE,INDEX)
+            url = BASE_URL+SERVICE_ACTION+"?q=*+AND+ingestionDate:[NOW-%sDAY+TO+NOW]&rows=%d&start=%d" % (days,STRIDE,INDEX)
             print url
             f = opener.open(url)
             unparsed_page = f.read()
@@ -278,6 +278,7 @@ scihub_archive.py --download --intersectsWith='POINT(-155.3 19.4)'
     querygroup = optparse.OptionGroup(parser, "Parameters", "These options are used to control what is done")
 
     querygroup.add_option('-o','--opensearch', action="store_true", default=False, help='Search scihub with opensearch and create archive.db')
+    querygroup.add_option('--days', action="store", dest="days", metavar='<ARG>', default='4',help='Number of days in past to search (default=4)')
     querygroup.add_option('-a','--all', action="store_true", default=False, help='Search everything at scihub')
     querygroup.add_option('-d','--download', action="store_true", default=False, help='Download new scenes')
     querygroup.add_option('-i','--intersectsWith', action="store", dest="intersectsWith", metavar='<ARG>', default='',help='WKT format POINT,LINE, or POLYGON')
@@ -293,7 +294,7 @@ scihub_archive.py --download --intersectsWith='POINT(-155.3 19.4)'
 
     conn = database_connection()
     if opt_dict['opensearch']: 
-        scihub_opensearch(conn,opener)
+        scihub_opensearch(conn,opener,opt_dict['days'])
     if opt_dict['download']:
         download_new(opener,conn)
     
