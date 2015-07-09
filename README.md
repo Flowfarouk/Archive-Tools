@@ -1,16 +1,16 @@
 # Archive-Tools
 This repository has some utility scripts used for searching and downloading data from various providers.
 
-alos2:
+ALOS-2:
 
 1. auig2_download.py - Command line download of data from AUIG2.  Eliminates the need to log into the Web/Silverlight interface to download your orders
 
-sentinel1:
+SENTINEL-1:
 
-1. scihub_download.py - Download a product from SciHub given the products id
+1. scihub_dl.py - Download a product from SciHub given the product id
 2. scihub_archive.py - More robust script to create a local database of SciHub products, search that database with a shapefile or WKT geometry, and download products.  You will need GDAL python bindings for this to work.
 
-tsx:
+TerraSAR-X:
 Useful scripts for downloading data from DLR, comparing TDX acquisitions with tasking orders, and KML of orders and aquired data 
 
 1. compare_tdx_plan.py - This will compare the ASCII from [EOWEB](https://centaurus.caf.dlr.de:8443/eoweb-ng/template/default/welcome/entryPage.vm) with the TanDEM-X_Acquisition_Timeline found under the Investigator tab on the [DLR Science Service System](http://sss.terrasar-x.dlr.de/) for conflicts with your tasking orders.  You will need to download the Excel spreadsheet and save it as a CSV.
