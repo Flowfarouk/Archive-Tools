@@ -35,7 +35,7 @@ import urllib2
 import time
 import re
 
-BASE_URL = 'https://scihub.esa.int/dhus/'
+BASE_URL = 'https://scihub.copernicus.eu/apihub'
 USERNAME='' # hardwire your SciHub username here 
 PASSWORD='' # hardwire your SciHub password here 
 
@@ -45,7 +45,7 @@ authhandler = urllib2.HTTPBasicAuthHandler(passman)
 opener = urllib2.build_opener(authhandler)
 
 ### EXAMPLE URL FOR DATA PRODUCT: https://scihub.esa.int/dhus/odata/v1/Products('87c36024-4c38-43d8-b21a-d60bb9fe3eba')/$value
-url = "https://scihub.esa.int/dhus/odata/v1/Products('%s')/$value" % sys.argv[1] # this is the product id from scihub
+url = BASE_URL+"/odata/v1/Products('%s')/$value" % sys.argv[1] # this is the product id from scihub
 f = opener.open(url)
 dl_file_size = int(f.info()['Content-Length'])
 filename = f.info()['Content-Disposition'].split("=")[-1].strip().replace('"','') # the filename has quotes, so remove from the string
