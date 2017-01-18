@@ -44,7 +44,7 @@ import sqlite3
 
 from osgeo import ogr
 
-BASE_URL = 'https://scihub.esa.int/dhus'
+BASE_URL = 'https://scihub.copernicus.eu/apihub'
 SERVICE_ACTION = "/search"
 USERNAME=''
 PASSWORD=''
