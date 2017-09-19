@@ -1,13 +1,13 @@
 #! /usr/bin/env python
 ###############################################################################
-#  scihub_download.py
+#  sentinel1_orbit.py
 #
-#  Purpose:  Get Sentinel-1 orbits from UNAVCO and format for GMTSAR
+#  Purpose:  Get Sentinel-1 orbits from ESA PDGS
 #  Author:   Scott Baker
-#  Created:  Oct 2015
+#  Created:  Sept 2017
 #
 ###############################################################################
-#  Copyright (c) 2015, Scott Baker
+#  Copyright (c) 2017, Scott Baker
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a
 #  copy of this software and associated documentation files (the "Software"),
@@ -27,66 +27,51 @@
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
+from __future__ import print_function
 import os
 import sys
+import re
 import datetime
-import urllib2
-import xml.dom.minidom
+import ssl
+import argparse
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen
 
-BASE_URL = 'https://www.unavco.org/data/imaging/sar/lts1/winsar/s1qc'
-SECONDS_SPAN = 200 # S1 orbits are every 10 seconds, so this determines how many orbits will be recorded
+gcontext = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
 
-if len(sys.argv)<2:
-    print "Need to provide the time in ISO 8601 format: YYYYmmddTHHMMSS"
-    print "Ideally, you would give the scene center time."
-    print "USAGE: sentinel1_orbits.py 20150921T013054"
-    exit()
+def parse():
+    '''Command line parser.'''
+    parser = argparse.ArgumentParser(
+        description='Download Sentinel-1 orbit file',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument('SCENE_CENTER_TIME', action='store', type=str, help='ISO 8601 format: YYYYmmddTHHMMSS')
+    parser.add_argument('-sat', action='store', type=str, default='S1A', help='Satellite: S1A or S1B')
+    args = parser.parse_args()
+    return args
 
-scene_center_time = datetime.datetime.strptime(sys.argv[1],"%Y%m%dT%H%M%S")
-start_orb_time = scene_center_time - datetime.timedelta(seconds=SECONDS_SPAN) 
-stop_orb_time = scene_center_time + datetime.timedelta(seconds=SECONDS_SPAN) 
+if __name__ == '__main__':
+    args = parse()
+    scene_center_time = datetime.datetime.strptime(args.SCENE_CENTER_TIME,"%Y%m%dT%H%M%S")
+    validity_start_time = scene_center_time-datetime.timedelta(days=1)
+    orb_type = 'aux_poeorb'
+    if (datetime.datetime.now()-scene_center_time).days < 21:
+        orb_type = 'aux_resorb'
+        validity_start_time = scene_center_time-datetime.timedelta(hours=10)
+    ##### FIND THE CORRECT ORBIT FILE #####
+    BASE_URL = 'https://qc.sentinel1.eo.esa.int/%s/?validity_start_time=%s' % (orb_type, validity_start_time.strftime("%Y-%m-%d"))
+    for i in re.findall('''href=["'](.[^"']+)["']''', urlopen(BASE_URL, context=gcontext).read().decode('utf-8'), re.I):
+        if '.EOF' in i and args.sat in i:
+            orbit_file_url = "%s/%s" % (BASE_URL.split("?")[0], i)
+            orbit_file = os.path.basename(orbit_file_url)
+            orb_file_dates = os.path.splitext(orbit_file)[0].split('_V')[1].split("_")
+            orb_start = datetime.datetime.strptime(orb_file_dates[0], "%Y%m%dT%H%M%S")
+            orb_stop = datetime.datetime.strptime(orb_file_dates[1], "%Y%m%dT%H%M%S")
+            if not os.path.exists(orbit_file) and (orb_start < scene_center_time) and (orb_stop > scene_center_time):
+                os.system("wget --no-check-certificate -c %s" % orbit_file_url)
+                exit() # only download 1 orbit file, this is relevant for RESORB
 
-##### GET LIST OF FILES AND FIND ONE THAT COVERS THE SCENE #####
-orb_file=None
-files = urllib2.urlopen(BASE_URL+'/aux_poeorb/').read().splitlines()
-xml_resorb = [f.split(">")[2].split("<")[0] for f in files  if "_POEORB_" in f]
-for xml_orb in xml_resorb:
-    orb_file_dates = os.path.splitext(xml_orb)[0].split('_V')[1].split("_")
-    orb_start = datetime.datetime.strptime(orb_file_dates[0], "%Y%m%dT%H%M%S")
-    orb_stop = datetime.datetime.strptime(orb_file_dates[1], "%Y%m%dT%H%M%S")
-    if (orb_start < scene_center_time) and (orb_stop > scene_center_time):
-        print xml_orb,"::",orb_file_dates
-        orb_file = BASE_URL+'/aux_poeorb/'+xml_orb.strip()
-
-if not orb_file:
-    files = urllib2.urlopen('https://www.unavco.org/data/imaging/sar/lts1/winsar/s1qc/aux_resorb/').read().splitlines()
-    xml_resorb = [f.split(">")[2].split("<")[0] for f in files  if "_RESORB_" in f]
-    for xml_orb in xml_resorb:
-        orb_file_dates = os.path.splitext(xml_orb)[0].split('_V')[1].split("_")
-        orb_start = datetime.datetime.strptime(orb_file_dates[0], "%Y%m%dT%H%M%S")
-        orb_stop = datetime.datetime.strptime(orb_file_dates[1], "%Y%m%dT%H%M%S")
-        if (orb_start < scene_center_time) and (orb_stop > scene_center_time):
-            print xml_orb,"::",orb_file_dates
-            orb_file = BASE_URL+'/aux_resorb/'+xml_orb.strip()
-
-##### READ AND PARSE THE XML FILE #####
-xml_data = urllib2.urlopen(orb_file).read()
-dom_page = xml.dom.minidom.parseString(xml_data)
-orbits = []
-for node in dom_page.getElementsByTagName('OSV'):
-    x = float(node.getElementsByTagName('X')[0].firstChild.data)
-    y = float(node.getElementsByTagName('Y')[0].firstChild.data)
-    z = float(node.getElementsByTagName('Z')[0].firstChild.data)
-    vx = float(node.getElementsByTagName('VX')[0].firstChild.data)
-    vy = float(node.getElementsByTagName('VY')[0].firstChild.data)
-    vz = float(node.getElementsByTagName('VZ')[0].firstChild.data)
-    utc = datetime.datetime.strptime(node.getElementsByTagName('UTC')[0].firstChild.data,"UTC=%Y-%m-%dT%H:%M:%S.%f")
-    if (utc > start_orb_time) and (utc < stop_orb_time):
-        orbits.append('%s %s %s %f %f %f %f %f %f' % (utc.year, utc.strftime('%j'), int(utc.strftime('%H')) * 3600 + int(utc.strftime('%M')) * 60 + int(utc.strftime('%S')), x,y,z,vx,vy,vz))
-
-##### WRITE ORBIT DATA TO FILE #####
-first_line = str(len(orbits)) + ' ' + orbits[0][:14] + ' 10\n'
-with open(scene_center_time.strftime("%Y%m%d")+".LED",'w') as LED:
-    LED.write(first_line)
-    for orb in orbits:
-        LED.write(orb + '\n')
